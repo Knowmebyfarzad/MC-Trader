@@ -1,0 +1,5 @@
+# McNews MVP - runtime dependencies
+#
+# Only Telethon is required: calls to the local AI model use urllib from the
+# Python standard library, and the test suite uses unittest (also stdlib).
+telethon>=1.36,<2

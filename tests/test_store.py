@@ -130,7 +130,7 @@ class NewsStoreTests(unittest.TestCase):
                 overall={"sentiment": "bearish"},
             )
             path = store.save_report(report, tag="demo")
-            self.assertEqual(path.name, "analysis-20260601-123045-demo.json")
+            self.assertEqual(path.name, "analysis-2026_06_01_12_30-demo.json")
             payload = json.loads(path.read_text(encoding="utf-8"))
             self.assertEqual(payload["overall"]["sentiment"], "bearish")
             self.assertEqual(payload["generated_at"], "2026-06-01T12:30:45+00:00")

@@ -164,8 +164,8 @@ MVP never joins groups; join manually if you want to read one.
 
 | Path | Content |
 | --- | --- |
-| `data/raw/raw-YYYYMMDD.jsonl` | every post read (one JSON object per line) |
-| `data/analyses/analysis-<timestamp>-<mode>.json` | full report, incl. raw model answers |
+| `data/raw/raw-YYYY_MM_DD.jsonl` | every post read (one JSON object per line) |
+| `data/analyses/analysis-YYYY_MM_DD_HH_MM-<mode>.json` | full report, incl. raw model answers |
 | `data/state.json` | newest message id per channel, so `watch`/`analyze` only fetch what is new |
 | `sessions/mcnews.session` | Telegram login session (**secret**, git-ignored) |
 

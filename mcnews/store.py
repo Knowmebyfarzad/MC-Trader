@@ -2,8 +2,8 @@
 
 Layout (all under ``data/``):
 
-    data/raw/raw-YYYYMMDD.jsonl     one JSON object per fetched post
-    data/analyses/analysis-<ts>-<tag>.json
+    data/raw/raw-YYYY_MM_DD.jsonl     one JSON object per fetched post
+    data/analyses/analysis-YYYY_MM_DD_HH_MM-<tag>.json
     data/state.json                 {"channels": {"@chan": <last_message_id>}}
 """
 
@@ -105,7 +105,7 @@ class NewsStore:
 
     # ------------------------------------------------------------------- raw
     def raw_path(self, when: datetime | None = None) -> Path:
-        stamp = (when or datetime.now(timezone.utc)).strftime("%Y%m%d")
+        stamp = (when or datetime.now(timezone.utc)).strftime("%Y_%m_%d")
         return self.raw_dir / ("raw-%s.jsonl" % stamp)
 
     def save_items(self, items: Iterable[NewsItem]) -> tuple[Path, int]:
@@ -119,7 +119,7 @@ class NewsStore:
         uids: set[str] = set()
         for offset in range(max(1, days)):
             moment = datetime.fromtimestamp(reference.timestamp() - offset * 86400, tz=timezone.utc)
-            path = self.raw_dir / ("raw-%s.jsonl" % moment.strftime("%Y%m%d"))
+            path = self.raw_dir / ("raw-%s.jsonl" % moment.strftime("%Y_%m_%d"))
             for record in iter_jsonl(path):
                 channel = str(record.get("channel") or "")
                 message_id = record.get("message_id")
@@ -142,7 +142,7 @@ class NewsStore:
 
     # -------------------------------------------------------------- analyses
     def save_report(self, report: AnalysisReport, tag: str = "") -> Path:
-        stamp = report.generated_at.strftime("%Y%m%d-%H%M%S")
+        stamp = report.generated_at.strftime("%Y_%m_%d_%H_%M")
         suffix = ("-" + tag) if tag else ""
         path = self.analyses_dir / ("analysis-%s%s.json" % (stamp, suffix))
         path.parent.mkdir(parents=True, exist_ok=True)

@@ -12,6 +12,11 @@ It does exactly two things:
    OpenAI-compatible local server) and prints/saves a structured report:
    sentiment, market impact 1-10, affected assets, topics, watchlist, risks.
 
+
+# Preview 
+![home]("F:\MC Trader\Firstlook\home.png")
+
+
 No cloud services, no API keys for the AI, one Python dependency (`telethon`).
 
 ```

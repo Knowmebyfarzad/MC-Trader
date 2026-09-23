@@ -14,7 +14,7 @@ It does exactly two things:
 
 
 # Preview 
-![home]("F:\MC Trader\Firstlook\home.png")
+![home](Firstlook\home.png)
 
 
 No cloud services, no API keys for the AI, one Python dependency (`telethon`).

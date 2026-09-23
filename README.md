@@ -26,6 +26,8 @@ Telegram channels ──► Telethon reader ──► NewsItem list ──► ba
 | Path | Purpose |
 | --- | --- |
 | `main.py` | CLI entry point (`doctor`, `login`, `channels`, `fetch`, `analyze`, `watch`, `demo`) |
+| `webserver.py` | Local web UI entry point (browser frontend for fetch/analyze) |
+| `web/index.html` | The web page served by `webserver.py` (no framework, no build step) |
 | `mcnews/config.py` | `.env` loader + `Settings` (no `python-dotenv` needed) |
 | `mcnews/telegram_source.py` | Telethon reader: login, resolve refs, read posts, list dialogs |
 | `mcnews/llm.py` | Local model clients (Ollama `/api/chat`, OpenAI-compatible `/chat/completions`) + JSON extractor |
@@ -211,6 +213,34 @@ average, summaries joined with ` | `.
 | model server down | `fetch` still works; `analyze` stops with a hint to start it |
 | model answers with non-JSON | batch marked failed, raw answer stored, report still produced |
 | session revoked by Telegram | delete the `.session` file and run `login` again |
+
+## Web UI (browser frontend)
+
+Prefer clicking to typing? The same `fetch` / `analyze` features are available
+as a small local website:
+
+```powershell
+python webserver.py                  # http://127.0.0.1:8000
+python webserver.py --port 9000      # custom port
+```
+
+Open the address in a browser, type a channel name (step 1), pick how many
+posts to read (step 2), optionally add keywords / an analysis focus, then press
+**Read posts** or **Read & Analyze**. The page shows live status pills
+(Telegram session, AI model), per-channel read results, the analysis report
+(sentiment, market impact, key drivers, watchlist, risks) and the posts
+themselves.
+
+To share it while your computer is up, expose it through a Cloudflare quick
+tunnel:
+
+```powershell
+python webserver.py --host 0.0.0.0
+cloudflared tunnel --url http://localhost:8000
+```
+
+One run executes at a time (the Telegram session file is not concurrent-safe);
+a second visitor gets a friendly "another run is in progress" message.
 
 ## Tests
 

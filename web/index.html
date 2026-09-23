@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>McNews — Telegram News Analyzer</title>
+<style>
+  :root {
+    --bg: #0b1020; --bg-soft: #111833; --card: #161f42; --card-2: #1b2650;
+    --border: #2a376b; --text: #eef1ff; --muted: #9aa6d6;
+    --accent: #6c8cff; --accent-2: #8a6cff;
+    --green: #34d399; --red: #f87171; --amber: #fbbf24; --blue: #60a5fa;
+    --radius: 16px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; color: var(--text);
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    background: radial-gradient(1200px 600px at 80% -10%, #233066 0%, transparent 60%),
+                radial-gradient(900px 500px at -10% 10%, #3b2a6b 0%, transparent 55%),
+                var(--bg);
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 32px 20px 80px; }
+  header { text-align: center; margin-bottom: 28px; }
+  header h1 {
+    margin: 0 0 6px; font-size: 34px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2), #c084fc);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  header p { margin: 0; color: var(--muted); }
+  .status-bar { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 18px 0 26px; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 7px;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 999px; padding: 7px 14px; font-size: 13px; color: var(--muted);
+  }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); }
+  .dot.ok { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .dot.bad { background: var(--red); box-shadow: 0 0 8px var(--red); }
+  .card {
+    background: linear-gradient(180deg, var(--card), var(--card-2));
+    border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 24px; margin-bottom: 22px; box-shadow: 0 10px 30px rgba(0,0,0,.35);
+  }
+  .card h2 { margin: 0 0 16px; font-size: 19px; }
+  .step { color: var(--accent); font-weight: 700; margin-right: 8px; }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 14px 0 6px; }
+  input[type=text], input[type=number], textarea {
+    width: 100%; padding: 12px 14px; border-radius: 10px;
+    border: 1px solid var(--border); background: var(--bg-soft);
+    color: var(--text); font-size: 15px; outline: none;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  input:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(108,140,255,.25); }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 5px; }
+  .row { display: flex; gap: 16px; flex-wrap: wrap; }
+  .row > div { flex: 1; min-width: 180px; }
+  .check { display: flex; align-items: center; gap: 8px; margin-top: 16px; font-size: 14px; color: var(--muted); }
+  .check input { width: 17px; height: 17px; accent-color: var(--accent); }
+  .buttons { display: flex; gap: 12px; margin-top: 22px; flex-wrap: wrap; }
+  button {
+    flex: 1; min-width: 180px; border: 0; border-radius: 12px; cursor: pointer;
+    padding: 14px 18px; font-size: 15px; font-weight: 700; color: #fff;
+    transition: transform .12s, filter .12s;
+  }
+  button:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.1); }
+  button:disabled { opacity: .55; cursor: wait; }
+  .btn-fetch { background: linear-gradient(135deg, #2563eb, #60a5fa); }
+  .btn-analyze { background: linear-gradient(135deg, #7c3aed, #c084fc); }
+</style>
+<style>
+  #progress { display: none; align-items: center; gap: 12px; margin-top: 18px; color: var(--muted); font-size: 14px; }
+  .spinner {
+    width: 18px; height: 18px; border-radius: 50%;
+    border: 3px solid var(--border); border-top-color: var(--accent);
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .error-box {
+    display: none; margin-top: 18px; padding: 14px 16px; border-radius: 10px;
+    background: rgba(248,113,113,.12); border: 1px solid rgba(248,113,113,.45);
+    color: #fecaca; font-size: 14px; white-space: pre-wrap;
+  }
+  .note-box {
+    margin-top: 18px; padding: 14px 16px; border-radius: 10px;
+    background: rgba(251,191,36,.10); border: 1px solid rgba(251,191,36,.4);
+    color: #fde68a; font-size: 14px;
+  }
+  .badge {
+    display: inline-block; padding: 4px 12px; border-radius: 999px;
+    font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px;
+  }
+  .badge.bullish { background: rgba(52,211,153,.15); color: var(--green); border: 1px solid rgba(52,211,153,.4); }
+  .badge.bearish { background: rgba(248,113,113,.15); color: var(--red); border: 1px solid rgba(248,113,113,.4); }
+  .badge.neutral { background: rgba(96,165,250,.15); color: var(--blue); border: 1px solid rgba(96,165,250,.4); }
+  .badge.mixed   { background: rgba(251,191,36,.15); color: var(--amber); border: 1px solid rgba(251,191,36,.4); }
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin: 16px 0; }
+  .stat { background: var(--bg-soft); border: 1px solid var(--border); border-radius: 12px; padding: 14px; text-align: center; }
+  .stat .value { font-size: 22px; font-weight: 800; }
+  .stat .name { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; margin-top: 4px; }
+  .impact-bar { height: 10px; border-radius: 6px; background: var(--bg-soft); overflow: hidden; margin-top: 6px; }
+  .impact-fill { height: 100%; border-radius: 6px; background: linear-gradient(90deg, var(--green), var(--amber), var(--red)); transition: width .6s ease; }
+  ul.clean { margin: 8px 0 0; padding-left: 20px; font-size: 14px; }
+  ul.clean li { margin: 5px 0; }
+  .post { background: var(--bg-soft); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; margin-top: 12px; }
+  .post .meta { font-size: 12px; color: var(--muted); margin-bottom: 6px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .post .meta a { color: var(--accent); text-decoration: none; }
+  .post .meta a:hover { text-decoration: underline; }
+  .post .text { font-size: 14px; line-height: 1.55; white-space: pre-wrap; word-break: break-word; }
+  .tag { display: inline-block; background: rgba(108,140,255,.14); border: 1px solid rgba(108,140,255,.35); color: #c3ccff; border-radius: 999px; padding: 2px 10px; font-size: 11px; margin: 2px 3px 0 0; }
+  .read-chip { font-size: 12px; border-radius: 999px; padding: 5px 12px; margin: 3px 4px 0 0; display: inline-block; }
+  .read-chip.ok { background: rgba(52,211,153,.12); color: var(--green); border: 1px solid rgba(52,211,153,.35); }
+  .read-chip.err { background: rgba(248,113,113,.12); color: var(--red); border: 1px solid rgba(248,113,113,.35); }
+  .section-title { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin: 20px 0 8px; }
+  details summary { cursor: pointer; color: var(--muted); font-size: 14px; margin-top: 14px; }
+  footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 30px; }
+</style>
+</head>
+
+<body>
+<div class="wrap">
+  <header>
+    <h1>McNews</h1>
+    <p>Telegram channel news, analysed by your local AI model</p>
+    <div class="status-bar" id="statusBar">
+      <span class="pill"><span class="dot"></span> checking…</span>
+    </div>
+  </header>
+
+  <div class="card">
+    <h2>What do you want to read?</h2>
+
+    <label for="channels"><span class="step">1.</span>Channel name</label>
+    <input type="text" id="channels" list="channelList"
+           placeholder="@channelname  or  https://t.me/channelname">
+    <datalist id="channelList"></datalist>
+    <div class="hint">You can enter several channels separated by commas.</div>
+
+    <div class="row">
+      <div>
+        <label for="limit"><span class="step">2.</span>Number of posts</label>
+        <input type="number" id="limit" min="1" max="200" value="20">
+      </div>
+      <div>
+        <label for="keywords"><span class="step">3.</span>Keywords (optional)</label>
+        <input type="text" id="keywords" placeholder="gold, dollar, bitcoin">
+      </div>
+    </div>
+
+    <label for="focus"><span class="step">4.</span>Analysis focus (optional)</label>
+    <input type="text" id="focus" placeholder="e.g. focus on gold and USD">
+
+    <div class="check">
+      <input type="checkbox" id="onlyNew" checked>
+      <label for="onlyNew" style="margin:0">Only new posts (skip ones already read)</label>
+    </div>
+
+    <div class="buttons">
+      <button class="btn-fetch" id="btnFetch" onclick="startRun('fetch')">📥 Read posts</button>
+      <button class="btn-analyze" id="btnAnalyze" onclick="startRun('analyze')">🧠 Read &amp; Analyze</button>
+    </div>
+
+    <div id="progress"><div class="spinner"></div><span id="progressText">working…</span></div>
+    <div class="error-box" id="errorBox"></div>
+  </div>
+
+  <div id="results"></div>
+
+  <div class="card" id="recentCard" style="display:none">
+    <h2>Recent analyses</h2>
+    <div id="recentList"></div>
+  </div>
+
+  <footer>McNews web UI · read-only Telegram access · local AI · not financial advice</footer>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g,
+  (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+async function api(path, options) {
+  const res = await fetch(path, options);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || ("request failed: " + res.status));
+  return data;
+}
+
+// ---------------------------------------------------------------- status bar
+async function loadStatus() {
+  try {
+    const s = await api("/api/status");
+    const tg = s.telegram_ok && s.session_exists;
+    $("statusBar").innerHTML = `
+      <span class="pill"><span class="dot ${tg ? "ok" : "bad"}"></span>
+        Telegram: ${tg ? "ready" : "not configured"}</span>
+      <span class="pill"><span class="dot ${s.model_ok ? "ok" : "bad"}"></span>
+        AI model: ${s.model_ok ? esc(s.model) + " ready" : "offline"}</span>`;
+    if (!tg) showError("Telegram is not set up on the server. The owner needs to run: python main.py login");
+    if (!s.model_ok) showError("The AI model is not running: " + (s.model_message || "") +
+      " — reading posts still works, analysis does not.");
+  } catch (e) {
+    $("statusBar").innerHTML = '<span class="pill"><span class="dot bad"></span> server unreachable</span>';
+  }
+}
+
+async function loadChannelSuggestions() {
+  try {
+    const data = await api("/api/channels");
+    $("channelList").innerHTML = (data.channels || [])
+      .map((d) => `<option value="${esc(d.ref)}">${esc(d.title)} (${esc(d.kind)})</option>`)
+      .join("");
+  } catch (e) { /* suggestions are a bonus; ignore */ }
+}
+
+async function loadRecent() {
+  try {
+    const data = await api("/api/reports");
+    if (!data.reports || !data.reports.length) return;
+    $("recentCard").style.display = "";
+    $("recentList").innerHTML = data.reports.map((r) => `
+      <div class="post">
+        <div class="meta">
+          <span class="badge ${esc(r.sentiment || "mixed")}">${esc(r.sentiment || "?")}</span>
+          <span>impact ${esc(r.market_impact ?? "?")}/10</span>
+          <span>${esc((r.generated_at || "").replace("T", " ").slice(0, 16))} UTC</span>
+          <span>${esc(r.item_count)} post(s)</span>
+        </div>
+        <div class="text">${esc(r.summary || "(no summary)")}</div>
+      </div>`).join("");
+  } catch (e) { /* optional */ }
+}
+
+// ------------------------------------------------------------------ run flow
+let polling = null;
+
+function showError(msg) {
+  const box = $("errorBox");
+  box.style.display = "block";
+  box.textContent = msg;
+}
+function clearError() { $("errorBox").style.display = "none"; $("errorBox").textContent = ""; }
+
+function setBusy(busy, text) {
+  $("btnFetch").disabled = busy;
+  $("btnAnalyze").disabled = busy;
+  $("progress").style.display = busy ? "flex" : "none";
+  if (text) $("progressText").textContent = text;
+}
+
+async function startRun(mode) {
+  clearError();
+  const channels = $("channels").value.trim();
+  if (!channels) { showError("Please enter a channel name first (step 1)."); return; }
+  setBusy(true, "starting…");
+  try {
+    const { job_id } = await api("/api/run", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        mode,
+        channels,
+        limit: parseInt($("limit").value, 10) || 20,
+        keywords: $("keywords").value,
+        focus: $("focus").value,
+        ignore_state: !$("onlyNew").checked,
+      }),
+    });
+    pollJob(job_id);
+  } catch (e) {
+    setBusy(false);
+    showError(e.message);
+  }
+}
+
+function pollJob(jobId) {
+  if (polling) clearInterval(polling);
+  polling = setInterval(async () => {
+    try {
+      const job = await api("/api/job/" + jobId);
+      setBusy(true, job.progress || "working…");
+      if (job.status === "done") {
+        clearInterval(polling); polling = null;
+        setBusy(false);
+        renderResult(job.result);
+        loadRecent();
+      } else if (job.status === "error") {
+        clearInterval(polling); polling = null;
+        setBusy(false);
+        showError(job.error || "unknown error");
+      }
+    } catch (e) {
+      clearInterval(polling); polling = null;
+      setBusy(false);
+      showError(e.message);
+    }
+  }, 1500);
+}
+
+// ------------------------------------------------------------------ rendering
+function renderReads(reads) {
+  if (!reads || !reads.length) return "";
+  const chips = reads.map((r) => r.ok
+    ? `<span class="read-chip ok">✓ ${esc(r.title || r.ref)} — ${r.kept} post(s)</span>`
+    : `<span class="read-chip err">✗ ${esc(r.ref)} — ${esc(r.error || "failed")}</span>`
+  ).join("");
+  return `<div class="section-title">Channels</div><div>${chips}</div>`;
+}
+
+function renderReport(report) {
+  const o = report.overall || {};
+  const impact = parseInt(o.market_impact, 10) || 0;
+  const sentiment = o.sentiment || "mixed";
+  const drivers = (o.key_drivers || []).map((d) => `<li>${esc(d)}</li>`).join("");
+  const watch = (report.watchlist || []).map((w) => `<li>${esc(w)}</li>`).join("");
+  const risks = (report.risks || []).map((r) => `<li>${esc(r)}</li>`).join("");
+
+  const scored = (report.items || [])
+    .slice()
+    .sort((a, b) => (b.impact || 0) - (a.impact || 0));
+  const itemCards = scored.map((e) => `
+    <div class="post">
+      <div class="meta">
+        <span class="badge ${esc(e.sentiment || "mixed")}">${esc(e.sentiment || "?")}</span>
+        <span>impact ${esc(e.impact)}/10</span>
+        ${e.actionable ? '<span class="tag">⚡ actionable</span>' : ""}
+        <span>${esc(e.channel)} #${esc(e.message_id)}</span>
+      </div>
+      <div class="text">${esc(e.summary || "")}</div>
+      <div style="margin-top:6px">
+        ${(e.assets || []).map((a) => `<span class="tag">${esc(a)}</span>`).join("")}
+        ${(e.topics || []).map((t) => `<span class="tag">${esc(t)}</span>`).join("")}
+      </div>
+    </div>`).join("");
+
+  return `
+  <div class="card">
+    <h2>🧠 Analysis</h2>
+    <span class="badge ${esc(sentiment)}">${esc(sentiment)}</span>
+    <div class="stat-grid">
+      <div class="stat">
+        <div class="value">${impact}/10</div>
+        <div class="name">Market impact</div>
+        <div class="impact-bar"><div class="impact-fill" style="width:${impact * 10}%"></div></div>
+      </div>
+      <div class="stat"><div class="value">${o.tradable ? "✅ yes" : "— no"}</div><div class="name">Tradable</div></div>
+      <div class="stat"><div class="value">${esc(o.time_horizon || "?")}</div><div class="name">Horizon</div></div>
+      <div class="stat"><div class="value">${Math.round((o.confidence ?? 0) * 100)}%</div><div class="name">Confidence</div></div>
+      <div class="stat"><div class="value">${esc(report.item_count)}</div><div class="name">Posts analysed</div></div>
+    </div>
+    ${o.summary ? `<p style="line-height:1.6">${esc(o.summary)}</p>` : ""}
+    ${drivers ? `<div class="section-title">Key drivers</div><ul class="clean">${drivers}</ul>` : ""}
+    ${watch ? `<div class="section-title">Watchlist</div><ul class="clean">${watch}</ul>` : ""}
+    ${risks ? `<div class="section-title">Risks / caveats</div><ul class="clean">${risks}</ul>` : ""}
+    ${itemCards ? `<div class="section-title">Per post (highest impact first)</div>${itemCards}` : ""}
+  </div>`;
+}
+
+function renderPosts(items) {
+  if (!items || !items.length) return "";
+  const cards = items.map((p) => `
+    <div class="post">
+      <div class="meta">
+        <strong>${esc(p.channel_title || p.channel)}</strong>
+        <span>#${esc(p.message_id)}</span>
+        <span>${esc((p.date || "").replace("T", " ").slice(0, 16))} UTC</span>
+        ${p.views != null ? `<span>👁 ${esc(p.views)}</span>` : ""}
+        ${p.permalink ? `<a href="${esc(p.permalink)}" target="_blank" rel="noopener">open in Telegram ↗</a>` : ""}
+      </div>
+      <div class="text">${esc(p.text.length > 900 ? p.text.slice(0, 900) + " …" : p.text)}</div>
+    </div>`).join("");
+  return `<div class="section-title">Posts (${items.length})</div>${cards}`;
+}
+
+function renderResult(result) {
+  if (!result) return;
+  let html = '<div class="card">' + renderReads(result.reads);
+  if (!result.items || !result.items.length) {
+    html += `<div class="note-box">No matching posts found. Try unticking
+      "Only new posts" or removing keywords.</div>`;
+  }
+  html += "</div>";
+  if (result.note) html += `<div class="card"><div class="note-box" style="margin-top:0">${esc(result.note)}</div></div>`;
+  if (result.report) html += renderReport(result.report);
+  html += `<div class="card"><h2>📥 Posts</h2>${renderPosts(result.items)}</div>`;
+  $("results").innerHTML = html;
+  $("results").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+// ---------------------------------------------------------------------- init
+loadStatus();
+loadChannelSuggestions();
+loadRecent();
+</script>
+</body>
+</html>

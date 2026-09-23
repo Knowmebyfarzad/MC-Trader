@@ -23,7 +23,7 @@ from typing import Any, Sequence
 
 from . import __version__, console
 from .analyzer import NewsAnalyzer, report_summary_line
-from .config import PROJECT_ROOT, SUPPORTED_PROVIDERS, Settings, split_list
+from .config import DEFAULT_ENV_FILE, PROJECT_ROOT, SUPPORTED_PROVIDERS, Settings, split_list
 from .demo_data import build_sample_items
 from .llm import LLMError, LLMUnavailable, build_llm
 from .models import AnalysisReport, NewsItem
@@ -193,7 +193,10 @@ def setup_logging(verbose: bool) -> None:
 
 def resolve_settings(args: argparse.Namespace) -> Settings:
     """Settings from .env, with CLI flags taking precedence."""
-    env_file: Path | None = None
+    # IMPORTANT: when --env is not given we must pass DEFAULT_ENV_FILE, not
+    # None - from_env(None) means "do not load any .env file" and the Telegram
+    # credentials would silently come back as missing.
+    env_file: Path = DEFAULT_ENV_FILE
     if getattr(args, "env", None):
         env_file = Path(args.env).expanduser()
         if not env_file.is_file():

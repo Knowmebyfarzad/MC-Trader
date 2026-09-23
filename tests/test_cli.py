@@ -158,6 +158,22 @@ class ResolveSettingsTests(unittest.TestCase):
             with quiet():
                 resolve_settings(args)
 
+    def test_default_env_file_is_loaded(self):
+        """Regression: without --env, resolve_settings must load the default
+        .env (passing None to Settings.from_env silently loads nothing)."""
+        with tempfile.TemporaryDirectory() as tmp:
+            env_path = Path(tmp) / ".env"
+            env_path.write_text(
+                "TELEGRAM_API_ID=12345\nTELEGRAM_API_HASH=abcdef\n",
+                encoding="utf-8",
+            )
+            with mock.patch("mcnews.cli.DEFAULT_ENV_FILE", env_path):
+                with mock.patch.dict(os.environ, CLEAN_ENV, clear=True):
+                    args = build_parser().parse_args(["doctor"])
+                    settings = resolve_settings(args)
+        self.assertEqual(settings.api_id, 12345)
+        self.assertEqual(settings.api_hash, "abcdef")
+
 
 class DispatchTests(unittest.TestCase):
     def run_main(self, argv, extra_env=None):
@@ -165,9 +181,12 @@ class DispatchTests(unittest.TestCase):
             env = dict(CLEAN_ENV)
             env.update({"DATA_DIR": tmp, "TELEGRAM_SESSION": str(Path(tmp) / "sess")})
             env.update(extra_env or {})
-            with mock.patch.dict(os.environ, env, clear=True):
-                with quiet():
-                    return main(argv)
+            # Keep the developer's real project .env out of the test: point the
+            # default env file at a path that does not exist in the temp dir.
+            with mock.patch("mcnews.cli.DEFAULT_ENV_FILE", Path(tmp) / ".env"):
+                with mock.patch.dict(os.environ, env, clear=True):
+                    with quiet():
+                        return main(argv)
 
     def test_fetch_without_credentials_fails_cleanly(self):
         self.assertEqual(self.run_main(["fetch", "-c", "@x_news", "--no-color"]), EXIT_PROBLEM)
